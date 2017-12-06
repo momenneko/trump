@@ -1,0 +1,12 @@
+extends layout
+
+block content
+  - var w = 58 * 5
+  - var h = 89 * 5
+  canvas#canvas(
+    width= `${w}`
+    height= `${h}`
+  )
+  //script(type='text/javascript' src='/javascripts/index.js')
+  script(type='text/javascript' src='https://code.createjs.com/easeljs-0.8.2.min.js')
+  script(type='text/javascript' src='/javascripts/trump.js')
