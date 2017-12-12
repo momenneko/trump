@@ -7,6 +7,8 @@ function init() {
     let cardW = 58 * 4;
     let cardH = 89 * 4;
 
+    let friction = 0.9;
+
     var cardsContainer = new createjs.Container();
     cardsContainer.x = 0;
     cardsContainer.y = 0;
@@ -14,7 +16,11 @@ function init() {
     var cards = new Array(3);
     for(var i=0;i < 2;i++) {
         var card = new createjs.Shape();
-        card.graphics.beginFill("DeepSkyBlue").beginStroke('DarkGrey').setStrokeStyle(2).drawRoundRect(0, 0, cardW, cardH, 20, 20);
+        if (i % 2 == 0) {
+            card.graphics.beginFill('LightBlue').beginStroke('Black').setStrokeStyle(2).drawRoundRect(0, 0, cardW, cardH, 20, 20);
+        } else {
+            card.graphics.beginFill('DarkTurquoise').beginStroke('Black').setStrokeStyle(2).drawRoundRect(0, 0, cardW, cardH, 20, 20);
+        }
         card.x = i * 20;
         card.y = 0;
         card.addEventListener('pressmove', handleMove);
@@ -35,10 +41,23 @@ function init() {
     function handleUp(e) {
         cards.forEach(c => {
             c.hit = false;
-            card.alpha = 1.0;
+            c.card.alpha = 1.0;
         });
     }
     function handleDown(e) {
+        cards.forEach((c,i) => {
+            let point = c.card.globalToLocal(stage.mouseX, stage.mouseY);
+            
+            let isHit = c.card.hitTest(point.x, point.y);
+            c.hit = isHit;
+            //if (isHit === true) {
+                cards[i].dragPointX = stage.mouseX - c.card.x;
+                cards[i].dragPointY = stage.mouseY - c.card.y;
+                c.card.alpha = 0.5;
+                console.log();
+            //}
+        });
+        /*
         cards.forEach(c => {
             let point = c.card.globalToLocal(stage.mouseX, stage.mouseY);
             
@@ -48,18 +67,36 @@ function init() {
                 c.dragPointX = stage.mouseX - c.card.x;
                 c.dragPointY = stage.mouseY - c.card.y;
                 c.card.alpha = 0.5;
+                console.log();
             //}
         });
-        
+        */
     }
     function handleMove(e) {
-        cards.forEach(c => {
+        cardsContainer.getObjectsUnderPoint(stage.mouseX,stage.mouseY).forEach((c,i) => {
+            let index = cardsContainer.getChildIndex(c);
+            let cof = 1.0 - friction * index;
+            c.x = c.x + (stage.mouseX - cards[i].dragPointX - c.x) * cof;
+            c.y = c.y + (stage.mouseY - cards[i].dragPointY - c.y) * cof;
             //if (c.isHit === true) {
-                c.card.x = stage.mouseX - c.dragPointX;
-                c.card.y = stage.mouseY - c.dragPointY;
+                
+                //c.card.x = stage.mouseX - c.dragPointX;
+                //c.card.y = stage.mouseY - c.dragPointY;
             //}
-        })
-
+        });
+        /*
+        cards.forEach(c => {
+            let index = cardsContainer.getChildIndex(c.card);
+            let cof = 1.0 - friction * index;
+            c.card.x = c.card.x + (stage.mouseX - c.dragPointX - c.card.x) * cof;
+            c.card.y = c.card.y + (stage.mouseY - c.dragPointY - c.card.y) * cof;
+            //if (c.isHit === true) {
+                
+                //c.card.x = stage.mouseX - c.dragPointX;
+                //c.card.y = stage.mouseY - c.dragPointY;
+            //}
+        })*/
+        console.log(cardsContainer.getObjectsUnderPoint(stage.mouseX,stage.mouseY));
     }
     
     function handleTick() {
