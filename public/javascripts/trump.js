@@ -1,18 +1,26 @@
 window.addEventListener('load', init);
 
 function init() {
-    // Stageオブジェクトを作成します
     var stage = new createjs.Stage('canvas');
+    
+    // タッチデバイス対応
+    createjs.Touch.enable(stage);
+    
+    const cardW = 58 * 4;
+    const cardH = 89 * 4;
 
-    let cardW = 58 * 4;
-    let cardH = 89 * 4;
+    // 摩擦係数
+    let friction = 0.3;
 
-    let friction = 0.9;
+    // mousedownしたときのマウスの座標とカードの座標間の距離
+    var cardToMouseX, cardToMouseY; 
+    var upperCardIndex;
 
     var cardsContainer = new createjs.Container();
     cardsContainer.x = 0;
     cardsContainer.y = 0;
     stage.addChild(cardsContainer);
+
     var cards = new Array(3);
     for(var i=0;i < 2;i++) {
         var card = new createjs.Shape();
@@ -23,67 +31,65 @@ function init() {
         }
         card.x = i * 20;
         card.y = 0;
+        /*
+        var  cardHitArea = new createjs.Shape();
+        cardHitArea.graphics.beginFill("#FFF").drawEllipse(0,0,300,200);
+        card.hitArea = cardHitArea;
+        */
         card.addEventListener('pressmove', handleMove);
         card.addEventListener('mousedown', handleDown);
         card.addEventListener('pressup', handleUp);
 
         cards[i] = { card: card, isHit: false, dragPointX:0,dragPointY:0 };
         cardsContainer.addChild(cards[i].card); // 表示リストに追加
-        console.log(card);
     }
     
     // デフォルトで24FPS
     createjs.Ticker.addEventListener('tick', handleTick);
 
-    
-    var dragPointX,dragPointY;
-
-    function handleUp(e) {
+    function handleUp(e) {    
         cards.forEach(c => {
-            c.hit = false;
             c.card.alpha = 1.0;
         });
     }
+
     function handleDown(e) {
-        cards.forEach((c,i) => {
-            let point = c.card.globalToLocal(stage.mouseX, stage.mouseY);
-            
-            let isHit = c.card.hitTest(point.x, point.y);
-            c.hit = isHit;
-            //if (isHit === true) {
-                cards[i].dragPointX = stage.mouseX - c.card.x;
-                cards[i].dragPointY = stage.mouseY - c.card.y;
-                c.card.alpha = 0.5;
-                console.log();
-            //}
-        });
-        /*
-        cards.forEach(c => {
-            let point = c.card.globalToLocal(stage.mouseX, stage.mouseY);
-            
-            let isHit = c.card.hitTest(point.x, point.y);
-            c.hit = isHit;
-            //if (isHit === true) {
-                c.dragPointX = stage.mouseX - c.card.x;
-                c.dragPointY = stage.mouseY - c.card.y;
-                c.card.alpha = 0.5;
-                console.log();
-            //}
-        });
-        */
+        // マウス座標と接する一番上のカード
+        const c = cardsContainer.getObjectUnderPoint(stage.mouseX,stage.mouseY);
+            /*
+            let mouseHitArea = new createjs.Shape();
+            mouseHitArea.graphics.beginFill("#FFF").beginStroke('Black').setStrokeStyle(2).drawEllipse(0,0,300,200);
+            mouseHitArea.x = c.x;
+            mouseHitArea.y = c.y;
+            stage.addChild(mouseHitArea);
+            */
+        upperCardIndex = c.id;
+        cardToMouseX = stage.mouseX - c.x;
+        cardToMouseY = stage.mouseY - c.y;
+        c.alpha = 0.5;
     }
+
     function handleMove(e) {
-        cardsContainer.getObjectsUnderPoint(stage.mouseX,stage.mouseY).forEach((c,i) => {
-            let index = cardsContainer.getChildIndex(c);
-            let cof = 1.0 - friction * index;
-            c.x = c.x + (stage.mouseX - cards[i].dragPointX - c.x) * cof;
-            c.y = c.y + (stage.mouseY - cards[i].dragPointY - c.y) * cof;
-            //if (c.isHit === true) {
-                
-                //c.card.x = stage.mouseX - c.dragPointX;
-                //c.card.y = stage.mouseY - c.dragPointY;
-            //}
-        });
+        const draggingCard = cardsContainer.getObjectUnderPoint(stage.mouseX,stage.mouseY);
+        console.log('draggingCard: ' + draggingCard);
+        if (draggingCard != null) {
+            if (upperCardIndex != draggingCard.id) {
+                upperCardIndex = draggingCard.id;
+                cardToMouseX = stage.mouseX - draggingCard.x;
+                cardToMouseY = stage.mouseY - draggingCard.y;
+                draggingCard.alpha = 0.5;
+            }
+            const moveX = stage.mouseX - cardToMouseX - draggingCard.x;
+            const moveY = stage.mouseY - cardToMouseY - draggingCard.y;
+        
+            cardsContainer.children.forEach((c,i) => {
+                if (isCollision(draggingCard, c)) {
+                    let cof = draggingCard.id == c.id ? 1.0 : 1.0 - friction;
+                    c.x = c.x + moveX * cof;
+                    c.y = c.y + moveY * cof;
+                }
+            });
+        }
         /*
         cards.forEach(c => {
             let index = cardsContainer.getChildIndex(c.card);
@@ -100,23 +106,11 @@ function init() {
     }
     
     function handleTick() {
-        //console.log(new Date());
-/*
-        cards.forEach(card => {
-            let point = card.globalToLocal(stage.mouseX, stage.mouseY);
-
-            let isHit = card.hitTest(point.x, point.y);
-
-            if (isHit === true) {
-                card.graphics.clear().beginFill("DarkRed").beginStroke('DarkGrey').drawRoundRect(0, 0, cardW, cardH, 20, 20);
-                console.log(card.hitArea);
-            } else {
-                card.graphics.clear().beginFill("DeepSkyBlue").beginStroke('DarkGrey').drawRoundRect(0, 0, cardW, cardH, 20, 20);
-            }
-
-        })
-*/
-        // Stageの描画を更新します
         stage.update();
+    }
+
+    // カードが重なり合っているかどうかを判定する
+    function isCollision(c1, c2) {
+        return (Math.abs(c1.x - c2.x) < cardW) && (Math.abs(c1.y - c2.y) < cardH);
     }
 }
